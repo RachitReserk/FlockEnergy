@@ -1,0 +1,1286 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Urja Meter Ops API Service",
+    "description": "High-performance, scalable, rate-limited and documented REST API for Urja smart meters and distribution transformers (DTs).",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Flock Energy Engineering",
+      "email": "engineering@flockenergy.tech"
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Enter your JWT token obtained from POST /api/v1/auth/login"
+      }
+    },
+    "schemas": {}
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Service Health Check",
+        "tags": [
+          "System"
+        ],
+        "description": "Returns service operational status, uptime, memory, and database connectivity.",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "healthy"
+                    },
+                    "uptime": {
+                      "type": "number",
+                      "example": 120.45
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "database": {
+                      "type": "object",
+                      "properties": {
+                        "connected": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "metersCount": {
+                          "type": "integer",
+                          "example": 403
+                        },
+                        "dtsCount": {
+                          "type": "integer",
+                          "example": 40
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Operator Login",
+        "tags": [
+          "Authentication"
+        ],
+        "description": "Authenticate with email and password to receive a JWT Bearer token for accessing protected Urja endpoints.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Operator email address",
+                    "example": "operator@urja.local"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Operator password",
+                    "example": "urja-ops-2026"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Successful authentication",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
+                          "type": "string",
+                          "description": "JWT Bearer token"
+                        },
+                        "tokenType": {
+                          "type": "string",
+                          "example": "Bearer"
+                        },
+                        "expiresIn": {
+                          "type": "string",
+                          "example": "24h"
+                        },
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string",
+                              "example": "operator@urja.local"
+                            },
+                            "role": {
+                              "type": "string",
+                              "example": "operator"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Invalid credentials",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "UNAUTHORIZED"
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Invalid email or password"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "summary": "Get Authenticated User Profile",
+        "tags": [
+          "Authentication"
+        ],
+        "description": "Returns profile details of the currently authenticated operator.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current authenticated operator profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Current authenticated operator profile",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meters/stats": {
+      "get": {
+        "summary": "Meter Aggregation Statistics",
+        "tags": [
+          "Meters"
+        ],
+        "description": "Returns aggregated statistics of meters grouped by status, make, phase type, build, and installation type.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aggregated meter statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Aggregated meter statistics",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "totalMeters": {
+                          "type": "integer",
+                          "example": 403
+                        },
+                        "byStatus": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          },
+                          "example": {
+                            "Installed": 320,
+                            "Decommissioned": 60,
+                            "Faulty": 23
+                          }
+                        },
+                        "byMake": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          },
+                          "example": {
+                            "HPL": 100,
+                            "L&T": 95,
+                            "Genus": 88,
+                            "Allied": 65,
+                            "Secure": 55
+                          }
+                        },
+                        "byPhaseType": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          },
+                          "example": {
+                            "single": 280,
+                            "three": 123
+                          }
+                        },
+                        "byBuild": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          },
+                          "example": {
+                            "legacy": 215,
+                            "v2": 188
+                          }
+                        },
+                        "byInstallType": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          },
+                          "example": {
+                            "Whole Current": 310,
+                            "CT Operated": 93
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meters/": {
+      "get": {
+        "summary": "List & Search Meters",
+        "tags": [
+          "Meters"
+        ],
+        "description": "Returns a paginated list of Urja meters with multi-criteria filtering (make, phase, status, DT code, hierarchy) and sorting.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "description": "Page number"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "description": "Page size"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "meterId",
+                "serialNo",
+                "make",
+                "phaseType",
+                "installStatus",
+                "installType",
+                "build",
+                "dtCode",
+                "createdAt"
+              ],
+              "default": "meterId"
+            },
+            "in": "query",
+            "name": "sortBy",
+            "required": false,
+            "description": "Sort field"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "in": "query",
+            "name": "sortOrder",
+            "required": false,
+            "description": "Sort direction"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "description": "Search term matching meter ID or serial number"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "dtCode",
+            "required": false,
+            "description": "Filter by DT code (e.g. DT-001)"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "HPL",
+                "L&T",
+                "Genus",
+                "Allied",
+                "Secure"
+              ]
+            },
+            "in": "query",
+            "name": "make",
+            "required": false,
+            "description": "Filter by meter manufacturer"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "single",
+                "three"
+              ]
+            },
+            "in": "query",
+            "name": "phaseType",
+            "required": false,
+            "description": "Filter by single or three phase"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Installed",
+                "Decommissioned",
+                "Faulty"
+              ]
+            },
+            "in": "query",
+            "name": "installStatus",
+            "required": false,
+            "description": "Filter by installation status"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Whole Current",
+                "CT Operated"
+              ]
+            },
+            "in": "query",
+            "name": "installType",
+            "required": false,
+            "description": "Filter by installation type"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "legacy",
+                "v2"
+              ]
+            },
+            "in": "query",
+            "name": "build",
+            "required": false,
+            "description": "Filter by hardware build version"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "feederCode",
+            "required": false,
+            "description": "Filter by feeder code"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "substationCode",
+            "required": false,
+            "description": "Filter by substation code"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "divisionCode",
+            "required": false,
+            "description": "Filter by division code"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "circleCode",
+            "required": false,
+            "description": "Filter by circle code"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "zoneCode",
+            "required": false,
+            "description": "Filter by zone code"
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "hasGeo",
+            "required": false,
+            "description": "Filter for meters that have geo coordinates"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of Urja meters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Paginated list of Urja meters",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "meterId": {
+                            "type": "string",
+                            "example": "J100000"
+                          },
+                          "serialNo": {
+                            "type": "string",
+                            "example": "SE33962"
+                          },
+                          "make": {
+                            "type": "string",
+                            "example": "HPL"
+                          },
+                          "phaseType": {
+                            "type": "string",
+                            "example": "single"
+                          },
+                          "installStatus": {
+                            "type": "string",
+                            "example": "Decommissioned"
+                          },
+                          "installType": {
+                            "type": "string",
+                            "example": "Whole Current"
+                          },
+                          "build": {
+                            "type": "string",
+                            "example": "legacy"
+                          },
+                          "dtCode": {
+                            "type": "string",
+                            "example": "DT-001"
+                          },
+                          "dtName": {
+                            "type": "string",
+                            "example": "Malviya Nagar DT 1"
+                          },
+                          "dtCapacityKva": {
+                            "type": "number",
+                            "example": 100
+                          },
+                          "hierarchy": {
+                            "type": "object",
+                            "properties": {
+                              "zone": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "circle": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "division": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "subdivision": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "substation": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "feeder": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "dt": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "code": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "geo": {
+                            "type": "object",
+                            "properties": {
+                              "lat": {
+                                "type": "number",
+                                "example": 26.938961
+                              },
+                              "lng": {
+                                "type": "number",
+                                "example": 75.830957
+                              }
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "pageSize": {
+                          "type": "integer",
+                          "example": 20
+                        },
+                        "totalItems": {
+                          "type": "integer",
+                          "example": 403
+                        },
+                        "totalPages": {
+                          "type": "integer",
+                          "example": 21
+                        },
+                        "hasNextPage": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "hasPrevPage": {
+                          "type": "boolean",
+                          "example": false
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meters/{meterId}": {
+      "get": {
+        "summary": "Get Meter Details",
+        "tags": [
+          "Meters"
+        ],
+        "description": "Returns complete meter profile joined with transformer capacity and full grid hierarchy.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "meterId",
+            "required": true,
+            "description": "Urja meter ID (e.g. J100000) or serial number"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detailed information for a single meter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Detailed information for a single meter",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "meterId": {
+                          "type": "string",
+                          "example": "J100000"
+                        },
+                        "serialNo": {
+                          "type": "string",
+                          "example": "SE33962"
+                        },
+                        "make": {
+                          "type": "string",
+                          "example": "HPL"
+                        },
+                        "phaseType": {
+                          "type": "string",
+                          "example": "single"
+                        },
+                        "installStatus": {
+                          "type": "string",
+                          "example": "Decommissioned"
+                        },
+                        "installType": {
+                          "type": "string",
+                          "example": "Whole Current"
+                        },
+                        "build": {
+                          "type": "string",
+                          "example": "legacy"
+                        },
+                        "dtCode": {
+                          "type": "string",
+                          "example": "DT-001"
+                        },
+                        "dtName": {
+                          "type": "string",
+                          "example": "Malviya Nagar DT 1"
+                        },
+                        "dtCapacityKva": {
+                          "type": "number",
+                          "example": 100
+                        },
+                        "hierarchy": {
+                          "type": "object",
+                          "properties": {
+                            "zone": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "circle": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "division": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "subdivision": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "substation": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "feeder": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "dt": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "geo": {
+                          "type": "object",
+                          "properties": {
+                            "lat": {
+                              "type": "number",
+                              "example": 26.938961
+                            },
+                            "lng": {
+                              "type": "number",
+                              "example": 75.830957
+                            }
+                          }
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Meter not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Meter not found",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "NOT_FOUND"
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Meter with identifier 'J999999' not found"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dts/": {
+      "get": {
+        "summary": "List Distribution Transformers",
+        "tags": [
+          "Distribution Transformers"
+        ],
+        "description": "Returns a paginated list of distribution transformers with connected meter counts and filtering by feeder or capacity.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "description": "Page number"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "description": "Items per page"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "feederCode",
+            "required": false,
+            "description": "Filter by feeder code (e.g. F-001)"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            },
+            "in": "query",
+            "name": "minCapacityKva",
+            "required": false,
+            "description": "Minimum transformer capacity in kVA"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            },
+            "in": "query",
+            "name": "maxCapacityKva",
+            "required": false,
+            "description": "Maximum transformer capacity in kVA"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "description": "Search by DT code or name"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of distribution transformers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Paginated list of distribution transformers",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                            "example": "DT-001"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Malviya Nagar DT 1"
+                          },
+                          "feederCode": {
+                            "type": "string",
+                            "example": "F-001"
+                          },
+                          "capacityKva": {
+                            "type": "number",
+                            "example": 100
+                          },
+                          "meterCount": {
+                            "type": "integer",
+                            "example": 11,
+                            "description": "Total meters connected to this DT"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "pageSize": {
+                          "type": "integer",
+                          "example": 20
+                        },
+                        "totalItems": {
+                          "type": "integer",
+                          "example": 40
+                        },
+                        "totalPages": {
+                          "type": "integer",
+                          "example": 2
+                        },
+                        "hasNextPage": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "hasPrevPage": {
+                          "type": "boolean",
+                          "example": false
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dts/{code}": {
+      "get": {
+        "summary": "Get Distribution Transformer Detail",
+        "tags": [
+          "Distribution Transformers"
+        ],
+        "description": "Returns transformer details along with all assigned meters.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "description": "Transformer code (e.g. DT-001)"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Distribution transformer details and connected meters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Distribution transformer details and connected meters",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "DT-001"
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "Malviya Nagar DT 1"
+                        },
+                        "feederCode": {
+                          "type": "string",
+                          "example": "F-001"
+                        },
+                        "capacityKva": {
+                          "type": "number",
+                          "example": 100
+                        },
+                        "meterCount": {
+                          "type": "integer",
+                          "example": 11
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "meters": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "meterId": {
+                                "type": "string",
+                                "example": "J100000"
+                              },
+                              "serialNo": {
+                                "type": "string",
+                                "example": "SE33962"
+                              },
+                              "make": {
+                                "type": "string",
+                                "example": "HPL"
+                              },
+                              "phaseType": {
+                                "type": "string",
+                                "example": "single"
+                              },
+                              "installStatus": {
+                                "type": "string",
+                                "example": "Installed"
+                              },
+                              "installType": {
+                                "type": "string",
+                                "example": "Whole Current"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Transformer not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Transformer not found",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "example": "NOT_FOUND"
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Distribution transformer with identifier 'DT-999' not found"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "Operator session and token endpoints"
+    },
+    {
+      "name": "Meters",
+      "description": "Smart meters lookup, search, filtering, and stats"
+    },
+    {
+      "name": "Distribution Transformers",
+      "description": "Transformer assets and connected meters"
+    },
+    {
+      "name": "System",
+      "description": "Service health and introspection"
+    }
+  ]
+}
